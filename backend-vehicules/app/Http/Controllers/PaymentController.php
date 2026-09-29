@@ -8,8 +8,10 @@ use App\Enums\PaymentStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\RentalStatus;
 use App\Enums\VehicleStatus;
+use App\Services\ChariowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
@@ -24,8 +26,8 @@ class PaymentController extends Controller
             ->get();
 
         return response()->json([
-            'success' => true, 
-            'data' => $payments
+            'success' => true,
+            'data'    => $payments,
         ]);
     }
 
@@ -39,31 +41,31 @@ class PaymentController extends Controller
         if (!$payment) {
             return response()->json([
                 'success' => false,
-                'message' => "Le paiement avec l'ID $id n'existe pas."
+                'message' => "Le paiement avec l'ID $id n'existe pas.",
             ], 404);
         }
 
         $user = auth('api')->user();
         if ($user->role !== 'admin' && $payment->rental->user_id !== $user->id) {
             return response()->json([
-                'success' => false, 
-                'message' => 'Action non autorisée'
+                'success' => false,
+                'message' => 'Action non autorisée',
             ], 403);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $payment
+            'data'    => $payment,
         ]);
     }
 
     /**
-     * Effectuer un paiement (Client ou Admin) - Transaction ACID
+     * Effectuer un paiement direct (Client ou Admin) - Transaction ACID
      */
     public function pay(Request $request, $id)
     {
         $request->validate([
-            'payment_method' => 'required|in:card,cash,mobile_money,bank_transfer',
+            'payment_method' => 'required|in:card,cash,mobile_money,bank_transfer,chariow',
             'transaction_id' => 'nullable|string|unique:payments,transaction_id',
         ]);
 
@@ -73,14 +75,14 @@ class PaymentController extends Controller
         if ($user->role !== 'admin' && $rental->user_id !== $user->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Action non autorisée'
+                'message' => 'Action non autorisée',
             ], 403);
         }
 
         if ($rental->status !== RentalStatus::PENDING->value) {
             return response()->json([
                 'success' => false,
-                'message' => 'Paiement impossible pour cette réservation (statut actuel : ' . $rental->status . ')'
+                'message' => "Paiement impossible (statut actuel : {$rental->status})",
             ], 422);
         }
 
@@ -109,6 +111,93 @@ class PaymentController extends Controller
     }
 
     /**
+     * Initie une session de paiement Chariow en ligne (Mobile Money & Carte)
+     */
+    public function initiateChariowCheckout(Request $request, $id, ChariowService $chariowService)
+    {
+        $rental = Rental::with(['vehicle', 'user'])->findOrFail($id);
+        $user = auth('api')->user();
+
+        if ($user->role !== 'admin' && $rental->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Action non autorisée',
+            ], 403);
+        }
+
+        if ($rental->status !== RentalStatus::PENDING->value) {
+            return response()->json([
+                'success' => false,
+                'message' => "Cette réservation n'est plus en attente de paiement (statut : {$rental->status}).",
+            ], 422);
+        }
+
+        $transactionId = 'CHW-' . $rental->id . '-' . strtoupper(Str::random(6)) . '-' . time();
+        $session = $chariowService->createCheckoutSession($rental, $user, $transactionId);
+
+        if (!$session['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $session['message'] ?? 'Échec lors de la création de la session Chariow',
+            ], 400);
+        }
+
+        // Créer ou mettre à jour la ligne de paiement en attente
+        Payment::updateOrCreate(
+            ['rental_id' => $rental->id],
+            [
+                'amount'               => $rental->total_amount,
+                'payment_method'       => 'chariow',
+                'transaction_id'       => $transactionId,
+                'chariow_checkout_url' => $session['checkout_url'],
+                'status'               => PaymentStatus::PENDING->value,
+            ]
+        );
+
+        return response()->json([
+            'success'      => true,
+            'checkout_url' => $session['checkout_url'],
+            'step'         => $session['step'] ?? 'payment',
+            'simulated'    => $session['simulated'] ?? false,
+            'notice'       => $session['notice'] ?? null,
+            'transaction_id' => $transactionId,
+        ]);
+    }
+
+    /**
+     * Webhook Chariow (Pulse) pour la confirmation automatique des ventes
+     */
+    public function handleChariowWebhook(Request $request, ChariowService $chariowService)
+    {
+        $rawContent = $request->getContent();
+        $signature = $request->header('x-chariow-signature') ?: $request->header('X-Chariow-Signature');
+
+        if (config('services.chariow.webhook_secret')) {
+            if (!$chariowService->verifyWebhookSignature($rawContent, $signature)) {
+                Log::warning('Webhook Chariow: Signature non valide rejetée', [
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json(['error' => 'Signature invalide'], 401);
+            }
+        }
+
+        $payload = $request->all();
+        $event = $payload['event'] ?? ($payload['type'] ?? 'sale.completed');
+
+        Log::info("Webhook Chariow reçu : {$event}", ['payload' => $payload]);
+
+        if (in_array($event, ['sale.completed', 'payment.success', 'order.completed'])) {
+            $result = $chariowService->handleSaleCompleted($payload['data'] ?? $payload);
+            return response()->json($result);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Événement '{$event}' ignoré",
+        ]);
+    }
+
+    /**
      * Rembourser un paiement (Admin) - Transaction ACID
      */
     public function refund($id)
@@ -118,16 +207,16 @@ class PaymentController extends Controller
         if ($payment->status !== PaymentStatus::COMPLETED->value) {
             return response()->json([
                 'success' => false,
-                'message' => 'Seul un paiement complété peut être remboursé'
+                'message' => 'Seul un paiement complété peut être remboursé',
             ], 422);
         }
 
         DB::transaction(function () use ($payment) {
             $payment->update(['status' => PaymentStatus::REFUNDED->value]);
-            
+
             if ($payment->rental) {
                 $payment->rental->update(['status' => RentalStatus::CANCELLED->value]);
-                
+
                 if ($payment->rental->vehicle) {
                     $payment->rental->vehicle->update(['status' => VehicleStatus::AVAILABLE->value]);
                 }
@@ -135,8 +224,8 @@ class PaymentController extends Controller
         });
 
         return response()->json([
-            'success' => true, 
-            'message' => 'Paiement remboursé, location annulée et véhicule libéré'
+            'success' => true,
+            'message' => 'Paiement remboursé, location annulée et véhicule libéré',
         ]);
     }
 
@@ -156,7 +245,7 @@ class PaymentController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Statut du paiement mis à jour avec succès',
-            'data'    => $payment
+            'data'    => $payment,
         ]);
     }
 }

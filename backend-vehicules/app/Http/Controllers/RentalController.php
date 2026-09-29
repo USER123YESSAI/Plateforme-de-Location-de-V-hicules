@@ -305,7 +305,9 @@ class RentalController extends Controller
         }
 
         $logoPath = public_path('toumai-drive-logo.jpg');
-        $logoBase64 = file_exists($logoPath) ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoPath)) : null;
+        $logoBase64 = file_exists($logoPath)
+            ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($logoPath))
+            : null;
 
         $pdf = Pdf::loadView('invoices.rental', [
             'rental' => $rental, 

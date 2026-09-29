@@ -9,12 +9,13 @@ class Payment extends Model
 {
     use HasFactory;
 
-    // Ajoutez ce bloc pour autoriser l'enregistrement de ces colonnes
     protected $fillable = [
         'rental_id',
         'amount',
         'payment_method',
         'transaction_id',
+        'chariow_sale_id',
+        'chariow_checkout_url',
         'status',
         'paid_at'
     ];

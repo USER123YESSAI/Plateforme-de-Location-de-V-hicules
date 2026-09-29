@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'chariow' => [
+        'api_key'        => env('CHARIOW_API_KEY'),
+        'webhook_secret' => env('CHARIOW_WEBHOOK_SECRET'),
+        'product_id'     => env('CHARIOW_PRODUCT_ID'),
+        'base_url'       => env('CHARIOW_BASE_URL', 'https://api.chariow.com/v1'),
+        'frontend_url'   => env('FRONTEND_URL', 'http://localhost:3000'),
+    ],
+
 ];

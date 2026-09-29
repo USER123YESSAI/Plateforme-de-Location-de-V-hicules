@@ -12,7 +12,7 @@ import { formatPrice } from "@/lib/utils";
 import { Rental } from "@/types/rental";
 import { PaymentMethod } from "@/types/payment";
 import { toast } from "sonner";
-import { CreditCard, FileText, XCircle, Calendar, Smartphone, Building2, Banknote, Check } from "lucide-react";
+import { CreditCard, FileText, XCircle, Calendar, Smartphone, Building2, Banknote, Check, Zap } from "lucide-react";
 import Link from "next/link";
 
 export default function MyRentalsPage() {
@@ -20,7 +20,7 @@ export default function MyRentalsPage() {
   const [loading, setLoading] = useState(true);
   const [payingRental, setPayingRental] = useState<Rental | null>(null);
   const [cancellingRentalId, setCancellingRentalId] = useState<number | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("chariow");
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [submittingCancel, setSubmittingCancel] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -54,6 +54,15 @@ export default function MyRentalsPage() {
       return;
     }
     fetchRentals(statusFilter, yearFilter);
+
+    // Détection d'un retour après paiement Chariow
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("payment") === "chariow_return") {
+        toast.success("Retour de la passerelle Chariow ! Votre réservation est en cours de validation.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
   }, [user, router, statusFilter, yearFilter, fetchRentals]);
 
   const confirmCancel = async () => {
@@ -75,7 +84,23 @@ export default function MyRentalsPage() {
     e.preventDefault();
     if (!payingRental) return;
     setSubmittingPayment(true);
+
     try {
+      // 1. Flux Chariow (Passerelle sécurisée en ligne)
+      if (paymentMethod === "chariow") {
+        const res = await api.post(`/rentals/${payingRental.id}/chariow-checkout`);
+        if (res.data?.checkout_url) {
+          toast.success(
+            res.data.simulated
+              ? "Session Chariow (Mode Test) initiée."
+              : "Redirection vers la passerelle sécurisée Chariow..."
+          );
+          window.location.href = res.data.checkout_url;
+          return;
+        }
+      }
+
+      // 2. Flux direct standard
       await api.post(`/rentals/${payingRental.id}/pay`, {
         payment_method: paymentMethod,
         transaction_id: `TX-${Date.now()}`
@@ -365,6 +390,36 @@ export default function MyRentalsPage() {
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-2">
                   Moyen de paiement
                 </label>
+
+                {/* Option Chariow Recommandée */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("chariow")}
+                  className={`w-full flex items-center justify-between p-3.5 mb-2.5 rounded-xl border text-left text-xs font-semibold transition-all ${
+                    paymentMethod === "chariow"
+                      ? "border-primary bg-primary/10 text-primary ring-2 ring-primary/40 shadow-xs"
+                      : "border-border/70 hover:border-primary/50 bg-background text-foreground"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white shrink-0">
+                      <Zap className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold flex items-center gap-2">
+                        <span>Chariow Pay</span>
+                        <span className="text-[10px] bg-primary/20 text-primary font-bold px-1.5 py-0.5 rounded-md uppercase">
+                          En ligne
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground font-normal">
+                        Wave, Orange Money, Moov, Carte Visa / Mastercard
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-primary">Immédiat &rarr;</span>
+                </button>
+
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -376,7 +431,7 @@ export default function MyRentalsPage() {
                     }`}
                   >
                     <CreditCard className="h-4 w-4 shrink-0" />
-                    <span>Carte bancaire</span>
+                    <span>Carte directe</span>
                   </button>
                   <button
                     type="button"
@@ -388,7 +443,7 @@ export default function MyRentalsPage() {
                     }`}
                   >
                     <Smartphone className="h-4 w-4 shrink-0" />
-                    <span>Mobile Money</span>
+                    <span>Mobile Money direct</span>
                   </button>
                   <button
                     type="button"
@@ -400,7 +455,7 @@ export default function MyRentalsPage() {
                     }`}
                   >
                     <Building2 className="h-4 w-4 shrink-0" />
-                    <span>Virement</span>
+                    <span>Virement bancaire</span>
                   </button>
                   <button
                     type="button"
@@ -412,18 +467,36 @@ export default function MyRentalsPage() {
                     }`}
                   >
                     <Banknote className="h-4 w-4 shrink-0" />
-                    <span>Espèces</span>
+                    <span>Espèces en agence</span>
                   </button>
                 </div>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-2">
-                <Button type="button" variant="outline" onClick={() => setPayingRental(null)} disabled={submittingPayment}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPayingRental(null)}
+                  disabled={submittingPayment}
+                >
                   Fermer
                 </Button>
-                <Button type="submit" disabled={submittingPayment} className="bg-gradient-to-r from-primary to-blue-600 text-white inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4" />
-                  <span>{submittingPayment ? "Paiement en cours..." : "Confirmer le paiement"}</span>
+                <Button
+                  type="submit"
+                  disabled={submittingPayment}
+                  className="bg-gradient-to-r from-primary to-blue-600 text-white inline-flex items-center gap-1.5"
+                >
+                  {paymentMethod === "chariow" ? (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      <span>{submittingPayment ? "Connexion Chariow..." : "Payer via Chariow"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>{submittingPayment ? "Paiement en cours..." : "Confirmer le paiement"}</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

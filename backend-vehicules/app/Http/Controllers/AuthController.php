@@ -25,8 +25,10 @@ class AuthController extends Controller
             'license_expiry' => 'nullable|date',
             'address' => 'nullable|string',
         ], [
-            'terms_accepted.required' => 'Vous devez accepter les Conditions d’utilisation et la Politique de confidentialité.',
-            'terms_accepted.accepted' => 'Vous devez accepter les Conditions d’utilisation et la Politique de confidentialité.',
+            'terms_accepted.required' => 'Vous devez accepter les Conditions d’utilisation '
+                . 'et la Politique de confidentialité.',
+            'terms_accepted.accepted' => 'Vous devez accepter les Conditions d’utilisation '
+                . 'et la Politique de confidentialité.',
         ]);
 
         if ($validator->fails()) {
@@ -183,8 +185,10 @@ protected function respondWithToken($token)
         $validator = Validator::make($request->all(), [
             'terms_accepted' => 'required|accepted',
         ], [
-            'terms_accepted.required' => 'Vous devez accepter les Conditions d’utilisation et la Politique de confidentialité.',
-            'terms_accepted.accepted' => 'Vous devez accepter les Conditions d’utilisation et la Politique de confidentialité.',
+            'terms_accepted.required' => 'Vous devez accepter les Conditions d’utilisation '
+                . 'et la Politique de confidentialité.',
+            'terms_accepted.accepted' => 'Vous devez accepter les Conditions d’utilisation '
+                . 'et la Politique de confidentialité.',
         ]);
 
         if ($validator->fails()) {

@@ -59,8 +59,10 @@ export interface Payment {
   id: number;
   rental_id: number;
   amount: number;
-  payment_method: 'card' | 'cash' | 'mobile_money' | 'bank_transfer';
+  payment_method: 'chariow' | 'card' | 'cash' | 'mobile_money' | 'bank_transfer';
   transaction_id: string;
+  chariow_sale_id?: string;
+  chariow_checkout_url?: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';
   paid_at?: string;
 }

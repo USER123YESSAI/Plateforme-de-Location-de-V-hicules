@@ -68,6 +68,7 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show'])->whereNumber('id');
 Route::get('insurances', [RentalController::class, 'getInsurances']);
 Route::get('rentals/check-availability', [RentalController::class, 'getAvailability']);
+Route::post('webhooks/chariow', [PaymentController::class, 'handleChariowWebhook']);
 
 /*
 |--------------------------------------------------------------------------
@@ -84,6 +85,7 @@ Route::middleware('auth:api')->group(function () {
 
     // Paiements client
     Route::post('rentals/{id}/pay', [PaymentController::class, 'pay'])->whereNumber('id');
+    Route::post('rentals/{id}/chariow-checkout', [PaymentController::class, 'initiateChariowCheckout'])->whereNumber('id');
     Route::get('payments/{id}', [PaymentController::class, 'show'])->whereNumber('id');
 });
 

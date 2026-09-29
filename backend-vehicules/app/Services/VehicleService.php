@@ -19,7 +19,9 @@ class VehicleService
         $vehicle = Vehicle::findOrFail($vehicleId);
 
         // 1. Vérifier le statut de base du véhicule
-        $currentStatus = $vehicle->status instanceof VehicleStatus ? $vehicle->status->value : (string) $vehicle->status;
+        $currentStatus = $vehicle->status instanceof VehicleStatus
+            ? $vehicle->status->value
+            : (string) $vehicle->status;
         if ($currentStatus !== VehicleStatus::AVAILABLE->value) {
             return [
                 'available' => false, 

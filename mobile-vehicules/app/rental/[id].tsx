@@ -26,6 +26,8 @@ import {
   MessageSquare,
   FileCheck,
   Clock,
+  Zap,
+  CreditCard,
 } from 'lucide-react-native';
 
 export default function RentalVoucherScreen() {
@@ -34,6 +36,7 @@ export default function RentalVoucherScreen() {
 
   const [rental, setRental] = useState<Rental | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [payingWithChariow, setPayingWithChariow] = useState<boolean>(false);
 
   useEffect(() => {
     loadRental();
@@ -51,6 +54,25 @@ export default function RentalVoucherScreen() {
       setLoading(false);
     }
   }
+
+  const handleChariowPayment = async () => {
+    if (!rental) return;
+    setPayingWithChariow(true);
+    try {
+      const res = await api.post(`/rentals/${rental.id}/chariow-checkout`);
+      if (res.data?.checkout_url) {
+        Linking.openURL(res.data.checkout_url).catch(() => {
+          Alert.alert('Erreur', 'Impossible d’ouvrir le navigateur pour le paiement.');
+        });
+      } else {
+        Alert.alert('Information', res.data?.message || 'Erreur lors de l’initialisation de Chariow.');
+      }
+    } catch (err: any) {
+      Alert.alert('Erreur', err.response?.data?.message || 'Erreur de connexion avec Chariow.');
+    } finally {
+      setPayingWithChariow(false);
+    }
+  };
 
   const callAgency = () => {
     Linking.openURL('tel:+23566000000').catch(() => {
@@ -241,6 +263,29 @@ export default function RentalVoucherScreen() {
           <Text style={styles.totalLabel}>TOTAL RÉGLÉ / DÛ :</Text>
           <Text style={styles.totalVal}>{formatPrice(rental.total_amount)}</Text>
         </View>
+
+        {rental.status === 'pending' && (
+          <View style={styles.chariowSection}>
+            <TouchableOpacity
+              style={[styles.chariowBtn, payingWithChariow && styles.chariowBtnDisabled]}
+              onPress={handleChariowPayment}
+              disabled={payingWithChariow}
+              activeOpacity={0.85}
+            >
+              {payingWithChariow ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Zap size={18} color="#ffffff" />
+                  <Text style={styles.chariowBtnText}>Payer en ligne avec Chariow</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <Text style={styles.chariowSubText}>
+              Paiement sécurisé : Wave, Orange Money, Moov, Carte bancaire
+            </Text>
+          </View>
+        )}
 
         {rental.payment && (
           <View style={styles.paymentSuccessBox}>
@@ -544,5 +589,40 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13.5,
     fontWeight: '700',
+  },
+  chariowSection: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  chariowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderRadius: BorderRadius.md,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chariowBtnDisabled: {
+    opacity: 0.7,
+  },
+  chariowBtnText: {
+    color: '#ffffff',
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  chariowSubText: {
+    fontSize: 11,
+    color: Colors.textMuted,
+    textAlign: 'center',
+    marginTop: 6,
   },
 });
