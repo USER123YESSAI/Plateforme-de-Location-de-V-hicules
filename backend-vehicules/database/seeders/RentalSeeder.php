@@ -11,22 +11,43 @@ class RentalSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. On cherche 'client' (et non 'user') pour correspondre à votre ENUM
+        $user = $this->getOrCreateClient();
+        $rentals = $this->getRentalData($user->id);
+
+        foreach ($rentals as $rental) {
+            if (Vehicle::where('id', $rental['vehicle_id'])->exists()) {
+                Rental::create($rental);
+            }
+        }
+    }
+
+    /**
+     * Récupère un utilisateur client existant ou en crée un de test.
+     */
+    private function getOrCreateClient(): User
+    {
         $user = User::where('role', 'client')->first() ?: User::first();
 
-        // 2. SÉCURITÉ : Si aucun utilisateur, on crée un 'client'
         if (!$user) {
             $user = User::create([
                 'name' => 'Client Test',
                 'email' => 'client@test.com',
                 'password' => bcrypt('password'),
-                'role' => 'client' // CORRIGÉ : 'client' au lieu de 'user'
+                'role' => 'client',
             ]);
         }
 
-        $rentals = [
+        return $user;
+    }
+
+    /**
+     * Retourne les données de seed des locations.
+     */
+    private function getRentalData(int $userId): array
+    {
+        return [
             [
-                "user_id" => $user->id,
+                "user_id" => $userId,
                 "vehicle_id" => 1,
                 "start_date" => "2025-02-01",
                 "end_date" => "2025-02-05",
@@ -37,10 +58,10 @@ class RentalSeeder extends Seeder
                 "subtotal" => 80000,
                 "total_amount" => 80000,
                 "status" => "completed",
-                "notes" => "Arrivée prévue à 14h"
+                "notes" => "Arrivée prévue à 14h",
             ],
             [
-                "user_id" => $user->id,
+                "user_id" => $userId,
                 "vehicle_id" => 8,
                 "start_date" => "2025-02-10",
                 "end_date" => "2025-02-15",
@@ -51,10 +72,10 @@ class RentalSeeder extends Seeder
                 "subtotal" => 600000,
                 "total_amount" => 600000,
                 "status" => "confirmed",
-                "notes" => "Client VIP"
+                "notes" => "Client VIP",
             ],
             [
-                "user_id" => $user->id,
+                "user_id" => $userId,
                 "vehicle_id" => 5,
                 "start_date" => "2025-03-01",
                 "end_date" => "2025-03-07",
@@ -65,10 +86,10 @@ class RentalSeeder extends Seeder
                 "subtotal" => 390000,
                 "total_amount" => 390000,
                 "status" => "active",
-                "notes" => "Besoin d'un siège bébé"
+                "notes" => "Besoin d'un siège bébé",
             ],
             [
-                "user_id" => $user->id,
+                "user_id" => $userId,
                 "vehicle_id" => 10,
                 "start_date" => "2025-03-10",
                 "end_date" => "2025-03-12",
@@ -79,14 +100,8 @@ class RentalSeeder extends Seeder
                 "subtotal" => 200000,
                 "total_amount" => 200000,
                 "status" => "pending",
-                "notes" => "Recharge Tesla demandée"
-            ]
+                "notes" => "Recharge Tesla demandée",
+            ],
         ];
-
-        foreach ($rentals as $rental) {
-            if (Vehicle::where('id', $rental['vehicle_id'])->exists()) {
-                Rental::create($rental);
-            }
-        }
     }
 }

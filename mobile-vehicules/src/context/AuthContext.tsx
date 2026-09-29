@@ -21,6 +21,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function handleAuthResponse(res: any): Promise<{ token: string | null; user: User | null }> {
+  const authToken = res.data.access_token || res.data.token;
+  const userData = res.data.user;
+
+  if (authToken) {
+    await saveAuthToken(authToken);
+  }
+  if (userData) {
+    await saveUserData(userData);
+  }
+
+  return { token: authToken || null, user: userData || null };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -66,20 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function login(email: string, password: string) {
     try {
       const res = await api.post('/auth/login', { email, password });
-      
-      const authToken = res.data.access_token || res.data.token;
-      const userData = res.data.user;
-
-      if (authToken) {
-        await saveAuthToken(authToken);
-        setToken(authToken);
-      }
-
-      if (userData) {
-        await saveUserData(userData);
-        setUser(userData);
-      }
-
+      const auth = await handleAuthResponse(res);
+      if (auth.token) setToken(auth.token);
+      if (auth.user) setUser(auth.user);
       return { success: true };
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Identifiants invalides ou erreur de connexion.';
@@ -96,27 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) {
     try {
       const res = await api.post('/auth/register', {
-        name,
-        email,
-        password,
-        password_confirmation,
-        phone,
-        accept_terms: true,
+        name, email, password, password_confirmation, phone, accept_terms: true,
       });
-
-      const authToken = res.data.access_token || res.data.token;
-      const userData = res.data.user;
-
-      if (authToken) {
-        await saveAuthToken(authToken);
-        setToken(authToken);
-      }
-
-      if (userData) {
-        await saveUserData(userData);
-        setUser(userData);
-      }
-
+      const auth = await handleAuthResponse(res);
+      if (auth.token) setToken(auth.token);
+      if (auth.user) setUser(auth.user);
       return { success: true };
     } catch (error: any) {
       const msg = error.response?.data?.message || "Erreur lors de l'inscription.";
@@ -150,15 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isLoading,
-        login,
-        register,
-        logout,
-        refreshUser,
-      }}
+      value={{ user, token, isLoading, login, register, logout, refreshUser }}
     >
       {children}
     </AuthContext.Provider>
@@ -168,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth doit être utilisé à l’intérieur d’un AuthProvider');
+    throw new Error("useAuth doit être utilisé à l\u0027intérieur d\u0027un AuthProvider");
   }
   return context;
 }

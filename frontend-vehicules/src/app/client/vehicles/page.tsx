@@ -12,6 +12,79 @@ import Link from "next/link";
 import { formatPrice, getImageUrl } from "@/lib/utils";
 import { Search, Fuel, Users, Gauge, Car } from "lucide-react";
 
+function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+  return (
+    <Card className="group overflow-hidden rounded-2xl border bg-card hover:shadow-md transition-all duration-200 flex flex-col justify-between">
+      <div>
+        {/* Image */}
+        <div className="relative aspect-video w-full overflow-hidden bg-muted">
+          <VehicleImage
+            src={getImageUrl(vehicle.image)}
+            alt={`${vehicle.brand} ${vehicle.model}`}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+          <div className="absolute top-3 right-3">
+            <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-background/90 backdrop-blur-xs text-foreground shadow-2xs">
+              {vehicle.category?.name || "Standard"}
+            </span>
+          </div>
+        </div>
+
+        {/* En-tête de la carte */}
+        <CardHeader className="p-4 pb-2">
+          <div className="flex justify-between items-start gap-2">
+            <div>
+              <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">
+                {vehicle.brand} {vehicle.model}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Année {vehicle.year} • {vehicle.transmission === "automatic" ? "Automatique" : "Manuelle"}
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+
+        {/* Spécifications & Tarifs */}
+        <CardContent className="p-4 pt-1 space-y-3">
+          <div className="grid grid-cols-3 gap-2 py-2 border-y text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-primary" />
+              <span>{vehicle.seats} places</span>
+            </div>
+            <div className="flex items-center gap-1.5 capitalize">
+              <Fuel className="h-3.5 w-3.5 text-primary" />
+              <span>{vehicle.fuel_type}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Gauge className="h-3.5 w-3.5 text-primary" />
+              <span>{vehicle.mileage ? `${vehicle.mileage} km` : "Illimité"}</span>
+            </div>
+          </div>
+
+          <div className="flex items-baseline justify-between pt-1">
+            <span className="text-xs text-muted-foreground font-medium">Tarif journalier</span>
+            <div>
+              <span className="text-xl font-extrabold text-primary">
+                {formatPrice(vehicle.daily_rate)}
+              </span>
+              <span className="text-xs text-muted-foreground ml-1">/jour</span>
+            </div>
+          </div>
+        </CardContent>
+      </div>
+
+      {/* Bouton de réservation */}
+      <CardFooter className="p-4 pt-0">
+        <Link href={`/vehicles/${vehicle.id}`} className="w-full">
+          <Button className="w-full rounded-xl justify-center group-hover:bg-primary/90 shadow-xs">
+            Réserver ce véhicule
+          </Button>
+        </Link>
+      </CardFooter>
+    </Card>
+  );
+}
+
 export default function ClientVehiclesPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -141,77 +214,7 @@ export default function ClientVehiclesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredVehicles.map((vehicle) => (
-            <Card
-              key={vehicle.id}
-              className="group overflow-hidden rounded-2xl border bg-card hover:shadow-md transition-all duration-200 flex flex-col justify-between"
-            >
-              <div>
-                {/* Image */}
-                <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                  <VehicleImage
-                    src={getImageUrl(vehicle.image)}
-                    alt={`${vehicle.brand} ${vehicle.model}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-3 right-3">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-background/90 backdrop-blur-xs text-foreground shadow-2xs">
-                      {vehicle.category?.name || "Standard"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* En-tête de la carte */}
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex justify-between items-start gap-2">
-                    <div>
-                      <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">
-                        {vehicle.brand} {vehicle.model}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Année {vehicle.year} • {vehicle.transmission === "automatic" ? "Automatique" : "Manuelle"}
-                      </p>
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {/* Spécifications & Tarifs */}
-                <CardContent className="p-4 pt-1 space-y-3">
-                  <div className="grid grid-cols-3 gap-2 py-2 border-y text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5 text-primary" />
-                      <span>{vehicle.seats} places</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 capitalize">
-                      <Fuel className="h-3.5 w-3.5 text-primary" />
-                      <span>{vehicle.fuel_type}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Gauge className="h-3.5 w-3.5 text-primary" />
-                      <span>{vehicle.mileage ? `${vehicle.mileage} km` : "Illimité"}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-baseline justify-between pt-1">
-                    <span className="text-xs text-muted-foreground font-medium">Tarif journalier</span>
-                    <div>
-                      <span className="text-xl font-extrabold text-primary">
-                        {formatPrice(vehicle.daily_rate)}
-                      </span>
-                      <span className="text-xs text-muted-foreground ml-1">/jour</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </div>
-
-              {/* Bouton de réservation */}
-              <CardFooter className="p-4 pt-0">
-                <Link href={`/vehicles/${vehicle.id}`} className="w-full">
-                  <Button className="w-full rounded-xl justify-center group-hover:bg-primary/90 shadow-xs">
-                    Réserver ce véhicule
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
+            <VehicleCard key={vehicle.id} vehicle={vehicle} />
           ))}
         </div>
       )}

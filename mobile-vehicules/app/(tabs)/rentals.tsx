@@ -16,6 +16,51 @@ import { RentalCard } from '../../src/components/RentalCard';
 import { useAuth } from '../../src/context/AuthContext';
 import { Calendar, LogIn, RefreshCw } from 'lucide-react-native';
 
+function AuthPrompt() {
+  const router = useRouter();
+
+  return (
+    <View style={styles.authPromptContainer}>
+      <View style={styles.authIconWrapper}>
+        <Calendar size={36} color={Colors.primary} />
+      </View>
+      <Text style={styles.authTitle}>Suivez vos réservations</Text>
+      <Text style={styles.authSubtitle}>
+        Connectez-vous à votre compte Toumaï Drive pour accéder à vos locations en cours, télécharger vos bons de prise en charge et consulter votre historique.
+      </Text>
+
+      <TouchableOpacity
+        style={styles.authButton}
+        onPress={() => router.push('/login')}
+        activeOpacity={0.8}
+      >
+        <LogIn size={18} color="#ffffff" />
+        <Text style={styles.authButtonText}>Se connecter</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function EmptyRentals() {
+  const router = useRouter();
+
+  return (
+    <View style={styles.emptyContainer}>
+      <Calendar size={48} color={Colors.textLight} />
+      <Text style={styles.emptyTitle}>Aucune réservation pour le moment</Text>
+      <Text style={styles.emptySubtitle}>
+        Choisissez un véhicule dans le catalogue et réservez-le en quelques secondes.
+      </Text>
+      <TouchableOpacity
+        style={styles.exploreBtn}
+        onPress={() => router.push('/(tabs)')}
+      >
+        <Text style={styles.exploreBtnText}>Explorer les véhicules</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function RentalsScreen() {
   const router = useRouter();
   const { user, token } = useAuth();
@@ -58,26 +103,7 @@ export default function RentalsScreen() {
 
   // État Non Connecté
   if (!user || !token) {
-    return (
-      <View style={styles.authPromptContainer}>
-        <View style={styles.authIconWrapper}>
-          <Calendar size={36} color={Colors.primary} />
-        </View>
-        <Text style={styles.authTitle}>Suivez vos réservations</Text>
-        <Text style={styles.authSubtitle}>
-          Connectez-vous à votre compte Toumaï Drive pour accéder à vos locations en cours, télécharger vos bons de prise en charge et consulter votre historique.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.authButton}
-          onPress={() => router.push('/login')}
-          activeOpacity={0.8}
-        >
-          <LogIn size={18} color="#ffffff" />
-          <Text style={styles.authButtonText}>Se connecter</Text>
-        </TouchableOpacity>
-      </View>
-    );
+    return <AuthPrompt />;
   }
 
   return (
@@ -114,19 +140,7 @@ export default function RentalsScreen() {
               <Text style={styles.loadingText}>Chargement de vos réservations...</Text>
             </View>
           ) : (
-            <View style={styles.emptyContainer}>
-              <Calendar size={48} color={Colors.textLight} />
-              <Text style={styles.emptyTitle}>Aucune réservation pour le moment</Text>
-              <Text style={styles.emptySubtitle}>
-                Choisissez un véhicule dans le catalogue et réservez-le en quelques secondes.
-              </Text>
-              <TouchableOpacity
-                style={styles.exploreBtn}
-                onPress={() => router.push('/(tabs)')}
-              >
-                <Text style={styles.exploreBtnText}>Explorer les véhicules</Text>
-              </TouchableOpacity>
-            </View>
+            <EmptyRentals />
           )
         }
       />

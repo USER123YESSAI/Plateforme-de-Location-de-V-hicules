@@ -12,6 +12,7 @@ import { useRouter, useParams } from "next/navigation";
 import { formatPrice } from "@/lib/utils";
 import { toast } from "sonner";
 import { BackButton } from "@/components/ui/back-button";
+import { VehicleJsonLd } from "@/components/seo/VehicleJsonLd";
 import {
   Calendar,
   MapPin,
@@ -197,6 +198,7 @@ export default function VehicleDetailPage() {
 
   return (
     <div className="min-h-screen bg-muted/20 flex flex-col justify-between">
+      {vehicle && <VehicleJsonLd vehicle={vehicle} />}
       <Navbar />
 
       <main className="container mx-auto px-4 py-6 sm:py-10 max-w-6xl space-y-4">

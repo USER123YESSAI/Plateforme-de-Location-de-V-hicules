@@ -1,2 +1,9 @@
+# ==============================================================================
+# Toumaï Drive - API Backend Robots Exclusion
+# L'API Laravel ne doit pas être indexée directement par les moteurs de recherche.
+# L'indexation est entièrement assurée par la plateforme frontend (Next.js).
+# ==============================================================================
 User-agent: *
-Disallow:
+Disallow: /api/
+Disallow: /admin/
+Disallow: /

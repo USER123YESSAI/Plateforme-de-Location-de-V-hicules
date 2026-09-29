@@ -30,6 +30,26 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearStoredAuth() {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  if (typeof window !== 'undefined') {
+    document.cookie = 'token=; path=/; max-age=0; SameSite=Strict';
+  }
+}
+
+function persistAuth(token: string, user: User) {
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', JSON.stringify(user));
+}
+
+function setCookieToken(token: string) {
+  if (typeof window !== 'undefined') {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${secure}`;
+  }
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -37,46 +57,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const validateSession = async () => {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-
-      if (storedToken && storedUser) {
-        try {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
-          // Verify with backend and refresh user state
-          const profileRes = await api.get('/auth/profile');
-          if (profileRes.data) {
-            setUser(profileRes.data);
-            localStorage.setItem('user', JSON.stringify(profileRes.data));
-          }
-        } catch (error) {
-          console.warn("[Auth] Session validation failed, logging out:", error);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          if (typeof window !== 'undefined') {
-            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          }
-          setToken(null);
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    };
-
     validateSession();
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+  async function validateSession() {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
 
-    if (typeof window !== 'undefined') {
-      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-      document.cookie = `token=${newToken}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${secure}`;
+    if (storedToken && storedUser) {
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+        // Verify with backend and refresh user state
+        const profileRes = await api.get('/auth/profile');
+        if (profileRes.data) {
+          setUser(profileRes.data);
+          localStorage.setItem('user', JSON.stringify(profileRes.data));
+        }
+      } catch (error) {
+        console.warn("[Auth] Session validation failed, logging out:", error);
+        clearStoredAuth();
+        setToken(null);
+        setUser(null);
+      }
     }
+    setLoading(false);
+  }
 
+  const login = (newToken: string, newUser: User) => {
+    persistAuth(newToken, newUser);
+    setCookieToken(newToken);
     setToken(newToken);
     setUser(newUser);
 
@@ -92,11 +102,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await api.post('/auth/logout');
     } catch (error) {
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      if (typeof window !== 'undefined') {
-        document.cookie = 'token=; path=/; max-age=0; SameSite=Strict';
-      }
+      clearStoredAuth();
       setToken(null);
       setUser(null);
     }

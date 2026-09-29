@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
@@ -34,12 +35,12 @@ export default function AdminCategoriesPage() {
     setAdding(true);
     try {
       await api.post('/categories', { name, description });
-      alert("Catégorie créée avec succès !");
+      toast.success("Catégorie créée avec succès !");
       setName("");
       setDescription("");
       fetchCategories();
     } catch (error: any) {
-      alert(error.response?.data?.message || "Erreur lors de la création de la catégorie.");
+      toast.error(error.response?.data?.message || "Erreur lors de la création de la catégorie.");
     } finally {
       setAdding(false);
     }
